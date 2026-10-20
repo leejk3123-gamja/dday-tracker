@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html class="h-full" lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+  <meta content="mobile_tab" name="shell-type"/>
+  <title>D Day Tracker - Google Stitch Edition</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & Material Symbols -->
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#3525cd",
+            "primary-container": "#4f46e5",
+            "primary-fixed": "#e2dfff",
+            "primary-fixed-dim": "#c3c0ff",
+            "on-primary": "#ffffff",
+            "surface": "#f9f9ff",
+            "surface-dim": "#d3daef",
+            "surface-container-lowest": "#ffffff",
+            "surface-container-low": "#f1f3ff",
+            "surface-container": "#e9edff",
+            "surface-container-high": "#e1e8fd",
+            "surface-container-highest": "#dce2f7",
+            "on-surface": "#141b2b",
+            "on-surface-variant": "#464555",
+            "secondary": "#0058be",
+            "secondary-fixed": "#d8e2ff",
+            "on-secondary-fixed-variant": "#004395",
+            "tertiary": "#7e3000",
+            "tertiary-fixed": "#ffdbcc",
+            "tertiary-container": "#a44100",
+            "error": "#ba1a1a",
+            "error-container": "#ffdad6",
+            "on-error-container": "#93000a",
+            "outline": "#777587",
+            "outline-variant": "#c7c4d8"
+          },
+          fontFamily: {
+            sans: ["Plus Jakarta Sans", "-apple-system", "sans-serif"]
+          },
+          spacing: {
+            "space-2xs": "0.25rem",
+            "space-xs": "0.5rem",
+            "space-sm": "0.75rem",
+            "space-md": "1rem",
+            "space-lg": "1.25rem",
+            "space-xl": "1.5rem",
+            "space-2xl": "2rem",
+            "margin": "1.25rem"
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    @layer base {
+      html, body {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom, 12px); }
+      .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+    }
+    ::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* Animation pulses */
+    @keyframes subtlePulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.08); opacity: 0.85; }
+    }
+    .pulse-dot {
+      animation: subtlePulse 2s infinite ease-in-out;
+    }
+
+    /* Modal Backdrop Transitions */
+    .modal-backdrop {
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+    .modal-backdrop.open {
+      opacity: 1;
+      visibility: visible;
+    }
+    .modal-sheet {
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .modal-backdrop.open .modal-sheet {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body class="bg-[#ECEEF5] dark:bg-[#0A0D14] text-on-surface font-sans antialiased min-h-screen flex justify-center py-0 sm:py-6 selection:bg-primary-fixed">
+
+  <!-- Canvas for Confetti celebrations -->
+  <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-[100]"></canvas>
+
+  <!-- Mobile Screen Container (Matching Stitch 420px Frame) -->
+  <div class="w-full max-w-[420px] min-h-screen bg-surface flex flex-col relative sm:rounded-[36px] sm:shadow-2xl sm:border sm:border-slate-200/80 overflow-hidden">
+    
+    <!-- Header (Status Bar & App Bar) -->
+    <header class="sticky top-0 w-full z-40 bg-surface/85 backdrop-blur-xl pt-safe border-b border-surface-container/60">
+      <!-- iOS Status Bar -->
+      <div class="h-6 px-margin flex items-center justify-between text-on-surface">
+        <span class="text-[12px] font-bold tracking-tight" id="status-clock">9:41</span>
+        <div class="flex items-center gap-1 text-on-surface">
+          <span class="material-symbols-outlined text-[15px]">signal_cellular_alt</span>
+          <span class="material-symbols-outlined text-[15px]">wifi</span>
+          <span class="material-symbols-outlined text-[17px]">battery_full</span>
+        </div>
+      </div>
+
+      <!-- Main Header Bar -->
+      <div class="h-14 px-margin flex items-center justify-between gap-space-xs">
+        <div class="flex items-center min-w-0 flex-1">
+          <h1 class="text-[20px] font-bold text-on-surface tracking-tight truncate">D Day Tracker</h1>
+        </div>
+        <div class="flex items-center gap-space-2xs flex-shrink-0">
+          <button id="toggle-search-btn" aria-label="Search" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/50 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[20px]">search</span>
+          </button>
+          <button id="toggle-theme-btn" aria-label="Toggle Theme" class="w-10 h-10 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/50 active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[20px]" id="theme-icon">dark_mode</span>
+          </button>
+          <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ml-1 shrink-0 shadow-sm cursor-pointer hover:scale-105 transition-transform" onclick="openAddModal()">
+            <span class="material-symbols-outlined text-on-primary text-[18px]">add</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Search Input (Hidden by default) -->
+      <div id="search-bar" class="hidden px-margin pb-3 pt-1">
+        <div class="relative flex items-center">
+          <span class="material-symbols-outlined absolute left-3 text-on-surface-variant text-[18px]">search</span>
+          <input type="text" id="search-input" placeholder="이벤트 제목 또는 장소 검색..." class="w-full bg-surface-container-low pl-9 pr-9 py-2 rounded-xl text-[13px] text-on-surface outline-none border border-transparent focus:border-primary/40 transition-all"/>
+          <button id="clear-search-btn" class="absolute right-2.5 text-on-surface-variant hover:text-on-surface hidden">
+            <span class="material-symbols-outlined text-[16px]">close</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Stream -->
+    <main class="flex-1 flex flex-col relative w-full px-margin pt-4 pb-32 bg-surface">
+      
+      <!-- Top Greeting & Summary -->
+      <div class="flex items-end justify-between mb-space-lg">
+        <div>
+          <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider block mb-0.5" id="today-formatted-date">TODAY, OCT 24</span>
+          <h2 class="text-[22px] font-bold text-on-surface tracking-tight" id="active-events-count">4 active events</h2>
+        </div>
+        <div class="flex items-center gap-space-xs bg-surface-container-low px-3 py-1.5 rounded-full shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-primary pulse-dot"></span>
+          <span class="text-[12px] font-semibold text-on-surface-variant" id="hero-quick-status">Kyoto is next</span>
+        </div>
+      </div>
+
+      <!-- Featured Highlight Card (Hero Event) -->
+      <section id="hero-card" class="relative w-full rounded-2xl bg-surface-container-lowest p-space-lg shadow-xl shadow-primary/5 border border-surface-container/60 overflow-hidden mb-space-lg transition-all duration-300 hover:shadow-2xl hover:shadow-primary/10">
+        <!-- Background Ambient Glow & Blue Accent Stripe -->
+        <div class="absolute -right-16 -top-16 w-56 h-56 rounded-full bg-primary-fixed/35 blur-3xl pointer-events-none"></div>
+        <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-primary"></div>
+        
+        <div class="relative z-10">
+          <!-- Card Top: Tags, Status & Pin -->
+          <div class="flex items-center justify-between mb-space-md">
+            <div class="flex items-center gap-1.5">
+              <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-surface-container text-primary text-[12px] font-semibold" id="hero-category-tag">
+                <span id="hero-category-emoji">✈️</span>
+                <span id="hero-category-name">Vacation</span>
+              </span>
+              <span class="inline-flex items-center px-2 py-1 rounded-full bg-surface-container-low text-on-surface-variant text-[11px] font-bold tracking-wider uppercase">
+                PINNED
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[28px] text-primary tracking-tight font-extrabold" id="hero-dday-badge">D-12</span>
+              <button id="hero-edit-btn" title="Edit this event" class="w-7 h-7 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors">
+                <span class="material-symbols-outlined text-[17px]">edit</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Event Title & Subtitle/Date -->
+          <div class="mb-space-md">
+            <h3 class="text-[22px] text-on-surface font-bold tracking-tight mb-1" id="hero-title">Vacation to Kyoto</h3>
+            <p class="text-[13px] text-on-surface-variant flex items-center gap-1.5" id="hero-meta-desc">
+              <span class="material-symbols-outlined text-[16px] text-primary" id="hero-meta-icon">flight_takeoff</span>
+              <span id="hero-meta-text">Nov 5, 2025 • Kansai Int'l Airport</span>
+            </p>
+          </div>
+
+          <!-- Live Realtime Countdown Grid -->
+          <div class="grid grid-cols-4 gap-2 mb-space-md bg-surface-container-low/80 p-2.5 rounded-xl border border-surface-container/40">
+            <div class="flex flex-col items-center justify-center py-2 bg-surface-container-lowest rounded-lg shadow-sm">
+              <span class="text-[18px] text-on-surface font-extrabold tabular-nums" id="hero-days">12</span>
+              <span class="text-[10px] text-on-surface-variant font-bold uppercase mt-0.5 tracking-wider">Days</span>
+            </div>
+            <div class="flex flex-col items-center justify-center py-2 bg-surface-container-lowest rounded-lg shadow-sm">
+              <span class="text-[18px] text-on-surface font-extrabold tabular-nums" id="hero-hours">08</span>
+              <span class="text-[10px] text-on-surface-variant font-bold uppercase mt-0.5 tracking-wider">Hours</span>
+            </div>
+            <div class="flex flex-col items-center justify-center py-2 bg-surface-container-lowest rounded-lg shadow-sm">
+              <span class="text-[18px] text-on-surface font-extrabold tabular-nums" id="hero-mins">42</span>
+              <span class="text-[10px] text-on-surface-variant font-bold uppercase mt-0.5 tracking-wider">Mins</span>
+            </div>
+            <div class="flex flex-col items-center justify-center py-2 bg-surface-container-lowest rounded-lg shadow-sm">
+              <span class="text-[18px] text-primary font-extrabold tabular-nums" id="hero-secs">15</span>
+              <span class="text-[10px] text-primary font-bold uppercase mt-0.5 tracking-wider">Secs</span>
+            </div>
+          </div>
+
+          <!-- Progress Track -->
+          <div>
+            <div class="flex justify-between items-center mb-1 text-[12px] font-semibold text-on-surface-variant">
+              <span id="hero-progress-label">68% elapsed</span>
+              <span id="hero-progress-total">28 days total</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-surface-container-high overflow-hidden">
+              <div id="hero-progress-bar" class="h-full rounded-full bg-primary transition-all duration-700" style="width: 68%;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Category Filter Chips (Matching Google Stitch Screen) -->
+      <div class="flex items-center gap-space-xs overflow-x-auto pb-space-sm mb-space-md no-scrollbar -mx-margin px-margin">
+        <button class="filter-chip shrink-0 px-space-md h-9 rounded-full bg-on-surface text-surface text-[12px] font-semibold flex items-center justify-center shadow-sm active:scale-95 transition-all" data-category="all">
+          All (<span id="count-all">4</span>)
+        </button>
+        <button class="filter-chip shrink-0 px-space-md h-9 rounded-full bg-surface-container-low text-on-surface-variant hover:text-on-surface text-[12px] font-semibold flex items-center justify-center active:scale-95 transition-all" data-category="work">
+          Work (<span id="count-work">1</span>)
+        </button>
+        <button class="filter-chip shrink-0 px-space-md h-9 rounded-full bg-surface-container-low text-on-surface-variant hover:text-on-surface text-[12px] font-semibold flex items-center justify-center active:scale-95 transition-all" data-category="family">
+          Family (<span id="count-family">1</span>)
+        </button>
+        <button class="filter-chip shrink-0 px-space-md h-9 rounded-full bg-surface-container-low text-on-surface-variant hover:text-on-surface text-[12px] font-semibold flex items-center justify-center active:scale-95 transition-all" data-category="living">
+          Living (<span id="count-living">1</span>)
+        </button>
+        <button class="filter-chip shrink-0 px-space-md h-9 rounded-full bg-surface-container-low text-on-surface-variant hover:text-on-surface text-[12px] font-semibold flex items-center justify-center active:scale-95 transition-all" data-category="memories">
+          Memories (<span id="count-memories">1</span>)
+        </button>
+      </div>
+
+      <!-- Event List Section Header -->
+      <div class="flex items-center justify-between mb-space-sm">
+        <div class="flex items-center gap-1.5">
+          <h3 class="text-[17px] font-bold text-on-surface">Upcoming & Past</h3>
+          <span class="w-5 h-5 rounded-full bg-surface-container flex items-center justify-center text-[11px] font-bold text-on-surface-variant" id="filtered-total-badge">4</span>
+        </div>
+        <button id="sort-order-btn" class="flex items-center gap-1 text-[12px] font-semibold text-on-surface-variant hover:text-on-surface transition-colors py-1 px-2 rounded-lg active:bg-surface-container-low">
+          <span id="sort-label">Sort by date</span>
+          <span class="material-symbols-outlined text-[16px]">expand_more</span>
+        </button>
+      </div>
+
+      <!-- Vertical Event Stack (Container for dynamic cards) -->
+      <div class="flex flex-col gap-space-sm mb-6" id="event-card-stack">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <!-- Floating Quick Add Button (Above Bottom Nav) -->
+      <div class="sticky bottom-20 flex justify-center w-full pointer-events-none mt-auto z-30">
+        <button onclick="openAddModal()" class="pointer-events-auto h-12 px-space-lg rounded-full bg-primary text-on-primary text-[14px] font-bold flex items-center gap-2 shadow-xl shadow-primary/30 hover:bg-primary-container active:scale-95 transition-all">
+          <span class="material-symbols-outlined text-[20px]">add</span>
+          <span>Add New Event</span>
+        </button>
+      </div>
+    </main>
+
+    <!-- Bottom Navigation Bar (Matching Google Stitch Screen) -->
+    <nav class="fixed bottom-0 max-w-[420px] w-full z-50 pb-safe bg-surface/90 backdrop-blur-xl border-t border-surface-container/60 shadow-[0_-4px_24px_rgba(20,27,43,0.04)]">
+      <div class="relative flex items-center justify-between h-16 px-space-md">
+        <!-- Tab: Events -->
+        <a href="#" class="flex flex-col items-center justify-center w-14 h-12 transition-colors text-primary" onclick="setCategoryFilter('all')">
+          <span class="material-symbols-outlined text-[22px]">timer</span>
+          <span class="text-[11px] font-bold mt-0.5">Events</span>
+        </a>
+
+        <!-- Tab: Tags -->
+        <a href="#" class="flex flex-col items-center justify-center w-14 h-12 text-on-surface-variant hover:text-on-surface transition-colors" onclick="focusTagFilter()">
+          <span class="material-symbols-outlined text-[22px]">category</span>
+          <span class="text-[11px] font-bold mt-0.5">Tags</span>
+        </a>
+
+        <!-- Center Floating Action Button (FAB) -->
+        <div class="flex items-center justify-center w-14">
+          <button aria-label="Create New D-Day Event" onclick="openAddModal()" class="absolute -top-5 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-[0_12px_28px_-4px_rgba(53,37,205,0.45)] hover:bg-primary-container active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[28px]">add</span>
+          </button>
+        </div>
+
+        <!-- Tab: Calendar -->
+        <a href="#" class="flex flex-col items-center justify-center w-14 h-12 text-on-surface-variant hover:text-on-surface transition-colors" onclick="showToast('캘린더 뷰는 다음 업데이트에 준비 중입니다 📅')">
+          <span class="material-symbols-outlined text-[22px]">calendar_month</span>
+          <span class="text-[11px] font-bold mt-0.5">Calendar</span>
+        </a>
+
+        <!-- Tab: Settings -->
+        <a href="#" class="flex flex-col items-center justify-center w-14 h-12 text-on-surface-variant hover:text-on-surface transition-colors" onclick="toggleTheme()">
+          <span class="material-symbols-outlined text-[22px]">settings</span>
+          <span class="text-[11px] font-bold mt-0.5">Settings</span>
+        </a>
+      </div>
+    </nav>
+
+    <!-- Modal Dialog: Add / Edit Event (iOS Style Bottom Sheet) -->
+    <div id="event-modal-backdrop" class="modal-backdrop fixed inset-0 bg-black/45 backdrop-blur-sm z-[110] flex items-end justify-center">
+      <div class="modal-sheet w-full max-w-[420px] bg-surface-container-lowest rounded-t-3xl p-6 shadow-2xl border-t border-surface-container max-h-[90vh] overflow-y-auto">
+        <div class="w-10 h-1 bg-surface-container-highest rounded-full mx-auto -mt-2 mb-4"></div>
+        
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-[19px] font-bold text-on-surface" id="modal-heading">Add New Event</h3>
+          <button onclick="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container">
+            <span class="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+
+        <form id="event-form" onsubmit="handleSaveEvent(event)">
+          <input type="hidden" id="form-event-id" value=""/>
+
+          <!-- Category Selector -->
+          <div class="mb-4">
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-2">Category</label>
+            <div class="grid grid-cols-4 gap-2" id="category-selector-group">
+              <button type="button" class="cat-select-btn px-2 py-2 rounded-xl border border-surface-container bg-surface-container-low text-[12px] font-bold flex flex-col items-center gap-1 active:scale-95 transition-all selected text-primary border-primary" data-cat="work" data-emoji="🚀">
+                <span>🚀</span><span>Work</span>
+              </button>
+              <button type="button" class="cat-select-btn px-2 py-2 rounded-xl border border-surface-container bg-surface-container-low text-[12px] font-bold flex flex-col items-center gap-1 active:scale-95 transition-all text-on-surface-variant" data-cat="family" data-emoji="🎂">
+                <span>🎂</span><span>Family</span>
+              </button>
+              <button type="button" class="cat-select-btn px-2 py-2 rounded-xl border border-surface-container bg-surface-container-low text-[12px] font-bold flex flex-col items-center gap-1 active:scale-95 transition-all text-on-surface-variant" data-cat="living" data-emoji="🏠">
+                <span>🏠</span><span>Living</span>
+              </button>
+              <button type="button" class="cat-select-btn px-2 py-2 rounded-xl border border-surface-container bg-surface-container-low text-[12px] font-bold flex flex-col items-center gap-1 active:scale-95 transition-all text-on-surface-variant" data-cat="memories" data-emoji="🌴">
+                <span>🌴</span><span>Memories</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Title Input -->
+          <div class="mb-3.5">
+            <label for="form-title" class="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-1">Event Title *</label>
+            <input type="text" id="form-title" required maxlength="40" placeholder="e.g., Vacation to Kyoto" class="w-full bg-surface-container-low border border-surface-container rounded-xl px-3.5 py-2.5 text-[14px] text-on-surface outline-none focus:border-primary transition-colors"/>
+          </div>
+
+          <!-- Description / Place Note -->
+          <div class="mb-3.5">
+            <label for="form-desc" class="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-1">Description / Location</label>
+            <input type="text" id="form-desc" maxlength="60" placeholder="e.g., Kansai Int'l Airport or Sprint review" class="w-full bg-surface-container-low border border-surface-container rounded-xl px-3.5 py-2.5 text-[14px] text-on-surface outline-none focus:border-primary transition-colors"/>
+          </div>
+
+          <!-- Target Date & Time -->
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label for="form-date" class="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-1">Target Date *</label>
+              <input type="date" id="form-date" required class="w-full bg-surface-container-low border border-surface-container rounded-xl px-3 py-2 text-[13px] text-on-surface outline-none focus:border-primary transition-colors"/>
+            </div>
+            <div>
+              <label for="form-time" class="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant mb-1">Target Time</label>
+              <input type="time" id="form-time" value="09:00" class="w-full bg-surface-container-low border border-surface-container rounded-xl px-3 py-2 text-[13px] text-on-surface outline-none focus:border-primary transition-colors"/>
+            </div>
+          </div>
+
+          <!-- Pinned Status Toggle -->
+          <div class="flex items-center justify-between p-3 rounded-xl bg-surface-container-low mb-5">
+            <div>
+              <span class="text-[13px] font-bold text-on-surface block">Pin as Hero Event</span>
+              <span class="text-[11px] text-on-surface-variant">상단 메인 카운트다운 타이머 카드로 고정합니다</span>
+            </div>
+            <input type="checkbox" id="form-pinned" class="w-5 h-5 accent-primary cursor-pointer"/>
+          </div>
+
+          <!-- Buttons -->
+          <div class="flex gap-2">
+            <button type="button" onclick="closeModal()" class="flex-1 py-3 rounded-xl bg-surface-container text-on-surface-variant text-[14px] font-bold hover:bg-surface-container-high transition-colors">
+              Cancel
+            </button>
+            <button type="submit" class="flex-1 py-3 rounded-xl bg-primary text-on-primary text-[14px] font-bold shadow-lg shadow-primary/30 hover:bg-primary-container transition-colors">
+              Save Event
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-box" class="fixed top-12 left-1/2 -translate-x-1/2 z-[120] pointer-events-none flex flex-col gap-2"></div>
+  </div>
+
+  <!-- Interactive Application Core Logic -->
+  <script>
+    // Storage Keys
+    const STORAGE_KEY = 'stitch_dday_tracker_events_v3';
+    const THEME_KEY = 'stitch_tracker_theme';
+
+    // Exact Initial Mockup Events from Stitch Design
+    function createInitialSeedData() {
+      const now = new Date();
+      
+      // Calculate realistic relative dates matching D-12, D-3, D-25, D-88, D+14
+      const d12 = new Date(now.getTime() + 12 * 86400000 + 8 * 3600000 + 42 * 60000);
+      const d3  = new Date(now.getTime() + 3 * 86400000);
+      const d25 = new Date(now.getTime() + 25 * 86400000);
+      const d88 = new Date(now.getTime() + 88 * 86400000);
+      const past14 = new Date(now.getTime() - 14 * 86400000);
+
+      const fmtDate = (d) => d.toISOString().split('T')[0];
+
+      return [
+        {
+          id: 'ev-kyoto',
+          title: 'Vacation to Kyoto',
+          category: 'work', // or custom vacation
+          categoryLabel: 'Vacation',
+          emoji: '✈️',
+          date: fmtDate(d12),
+          time: '09:00',
+          desc: "Kansai Int'l Airport",
+          pinned: true,
+          totalDurationDays: 28,
+          elapsedPercent: 68,
+          createdAt: now.getTime() - 19 * 86400000
+        },
+        {
+          id: 'ev-project',
+          title: 'Project Launch',
+          category: 'work',
+          categoryLabel: 'Work',
+          emoji: '🚀',
+          date: fmtDate(d3),
+          time: '18:00',
+          desc: 'Sprint 4 final deliverable review',
+          pinned: false,
+          totalDurationDays: 30,
+          elapsedPercent: 92,
+          createdAt: now.getTime() - 27 * 86400000
+        },
+        {
+          id: 'ev-bday',
+          title: "Mom's Birthday",
+          category: 'family',
+          categoryLabel: 'Family',
+          emoji: '🎂',
+          date: fmtDate(d25),
+          time: '12:00',
+          desc: 'Order customized flower bouquet',
+          pinned: false,
+          totalDurationDays: 365,
+          elapsedPercent: 93,
+          note: 'Remind 3 days ahead',
+          createdAt: now.getTime() - 340 * 86400000
+        },
+        {
+          id: 'ev-lease',
+          title: 'Apartment Lease Renewal',
+          category: 'living',
+          categoryLabel: 'Living',
+          emoji: '🏠',
+          date: fmtDate(d88),
+          time: '10:00',
+          desc: 'Contact owner for 2-year extension clause',
+          pinned: false,
+          totalDurationDays: 180,
+          elapsedPercent: 44,
+          createdAt: now.getTime() - 80 * 86400000
+        },
+        {
+          id: 'ev-jeju',
+          title: 'Trip to Jeju Island',
+          category: 'memories',
+          categoryLabel: 'Memories',
+          emoji: '🌴',
+          date: fmtDate(past14),
+          time: '10:00',
+          desc: '14 days since wonderful memories',
+          pinned: false,
+          totalDurationDays: 14,
+          elapsedPercent: 100,
+          createdAt: now.getTime() - 20 * 86400000
+        }
+      ];
+    }
+
+    // State
+    let events = [];
+    let currentFilter = 'all';
+    let searchQuery = '';
+    let sortAscending = true;
+    let pinnedEventId = null;
+
+    // Initialization
+    document.addEventListener('DOMContentLoaded', () => {
+      initTheme();
+      initRealClock();
+      loadEvents();
+      setupEventListeners();
+      startRealtimeTick();
+    });
+
+    function initRealClock() {
+      function updateClock() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const mins = String(now.getMinutes()).padStart(2, '0');
+        const clockEl = document.getElementById('status-clock');
+        if (clockEl) clockEl.textContent = `${hours}:${mins}`;
+
+        const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        const dateEl = document.getElementById('today-formatted-date');
+        if (dateEl) {
+          dateEl.textContent = `TODAY, ${monthNames[now.getMonth()]} ${now.getDate()}`;
+        }
+      }
+      updateClock();
+      setInterval(updateClock, 30000);
+    }
+
+    function loadEvents() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          events = JSON.parse(stored);
+        } catch (e) {
+          events = createInitialSeedData();
+        }
+      } else {
+        events = createInitialSeedData();
+        saveEvents();
+      }
+
+      const pinned = events.find(e => e.pinned);
+      pinnedEventId = pinned ? pinned.id : (events[0] ? events[0].id : null);
+      renderUI();
+    }
+
+    function saveEvents() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+    }
+
+    // Detailed Math & Calculation
+    function calculateEventStatus(item) {
+      const now = new Date();
+      const target = new Date(`${item.date}T${item.time || '00:00'}:00`);
+
+      const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const targetMidnight = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
+      const dayDiffMs = targetMidnight - todayMidnight;
+      const diffDays = Math.round(dayDiffMs / 86400000);
+
+      let ddayBadge = '';
+      let isPast = false;
+      let badgeThemeClass = '';
+
+      if (diffDays === 0) {
+        ddayBadge = 'D-DAY';
+        badgeThemeClass = 'text-error bg-error-container';
+      } else if (diffDays > 0) {
+        ddayBadge = `D-${diffDays}`;
+        if (diffDays <= 3) {
+          badgeThemeClass = 'text-tertiary bg-tertiary-fixed/60';
+        } else if (diffDays <= 25) {
+          badgeThemeClass = 'text-on-error-container bg-error-container/70';
+        } else {
+          badgeThemeClass = 'text-secondary bg-secondary-fixed/60';
+        }
+      } else {
+        isPast = true;
+        ddayBadge = `D+${Math.abs(diffDays)}`;
+        badgeThemeClass = 'text-on-surface-variant bg-surface-container-high';
+      }
+
+      const exactMs = target.getTime() - now.getTime();
+      const absMs = Math.abs(exactMs);
+
+      const days = Math.floor(absMs / 86400000);
+      const hours = Math.floor((absMs % 86400000) / 3600000);
+      const mins = Math.floor((absMs % 3600000) / 60000);
+      const secs = Math.floor((absMs % 60000) / 1000);
+
+      // Progress bar percentage
+      let elapsedPercent = item.elapsedPercent || 50;
+      if (item.createdAt) {
+        const totalDuration = target.getTime() - item.createdAt;
+        const elapsed = now.getTime() - item.createdAt;
+        if (totalDuration > 0) {
+          elapsedPercent = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
+        }
+      }
+
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const dateDisplay = `${monthNames[target.getMonth()]} ${target.getDate()}, ${target.getFullYear()}`;
+
+      return {
+        diffDays,
+        ddayBadge,
+        isPast,
+        badgeThemeClass,
+        days,
+        hours,
+        mins,
+        secs,
+        elapsedPercent,
+        dateDisplay
+      };
+    }
+
+    // Main Rendering
+    function renderUI() {
+      renderHeroCard();
+      renderEventStack();
+      updateCategoryCounts();
+    }
+
+    function renderHeroCard() {
+      const hero = events.find(e => e.id === pinnedEventId) || events[0];
+      if (!hero) {
+        document.getElementById('hero-card').style.display = 'none';
+        return;
+      }
+      document.getElementById('hero-card').style.display = 'block';
+
+      const status = calculateEventStatus(hero);
+
+      document.getElementById('hero-category-emoji').textContent = hero.emoji || '✈️';
+      document.getElementById('hero-category-name').textContent = hero.categoryLabel || hero.category.toUpperCase();
+      document.getElementById('hero-dday-badge').textContent = status.ddayBadge;
+      document.getElementById('hero-title').textContent = hero.title;
+      
+      const metaDesc = hero.desc ? `${status.dateDisplay} • ${hero.desc}` : status.dateDisplay;
+      document.getElementById('hero-meta-text').textContent = metaDesc;
+
+      document.getElementById('hero-days').textContent = String(status.days).padStart(2, '0');
+      document.getElementById('hero-hours').textContent = String(status.hours).padStart(2, '0');
+      document.getElementById('hero-mins').textContent = String(status.mins).padStart(2, '0');
+      document.getElementById('hero-secs').textContent = String(status.secs).padStart(2, '0');
+
+      document.getElementById('hero-progress-label').textContent = `${status.elapsedPercent}% elapsed`;
+      document.getElementById('hero-progress-total').textContent = `${hero.totalDurationDays || 30} days total`;
+      document.getElementById('hero-progress-bar').style.width = `${status.elapsedPercent}%`;
+
+      document.getElementById('hero-quick-status').textContent = `${hero.title.split(' ')[0]} is next`;
+    }
+
+    function renderEventStack() {
+      const container = document.getElementById('event-card-stack');
+      container.innerHTML = '';
+
+      let filtered = events.filter(e => {
+        const matchesCategory = currentFilter === 'all' || e.category.toLowerCase() === currentFilter.toLowerCase();
+        const matchesSearch = !searchQuery || e.title.toLowerCase().includes(searchQuery.toLowerCase()) || (e.desc && e.desc.toLowerCase().includes(searchQuery.toLowerCase()));
+        return matchesCategory && matchesSearch;
+      });
+
+      // Sort
+      filtered.sort((a, b) => {
+        const dateA = new Date(`${a.date}T${a.time || '00:00'}`);
+        const dateB = new Date(`${b.date}T${b.time || '00:00'}`);
+        return sortAscending ? (dateA - dateB) : (dateB - dateA);
+      });
+
+      document.getElementById('filtered-total-badge').textContent = filtered.length;
+      document.getElementById('active-events-count').textContent = `${events.length} active events`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="p-8 text-center bg-surface-container-lowest rounded-2xl border border-dashed border-surface-container">
+            <span class="text-3xl mb-2 block">🔍</span>
+            <p class="text-[14px] font-bold text-on-surface">해당하는 이벤트가 없습니다</p>
+            <p class="text-[12px] text-on-surface-variant mt-1">새로운 이벤트를 추가하거나 필터를 변경해 보세요.</p>
+          </div>
+        `;
+        return;
+      }
+
+      filtered.forEach(item => {
+        const status = calculateEventStatus(item);
+        const isPinned = item.id === pinnedEventId;
+
+        // Visual category pill styles from design
+        let catBg = 'bg-surface-container';
+        let catText = 'text-primary';
+        let progressFill = 'bg-primary';
+
+        if (item.category === 'work') {
+          catBg = 'bg-tertiary-fixed';
+          catText = 'text-tertiary';
+          progressFill = 'bg-tertiary-container';
+        } else if (item.category === 'family') {
+          catBg = 'bg-error-container';
+          catText = 'text-on-error-container';
+          progressFill = 'bg-error';
+        } else if (item.category === 'living') {
+          catBg = 'bg-secondary-fixed';
+          catText = 'text-on-secondary-fixed-variant';
+          progressFill = 'bg-secondary';
+        } else if (item.category === 'memories') {
+          catBg = 'bg-surface-container-highest';
+          catText = 'text-on-surface-variant';
+          progressFill = 'bg-outline';
+        }
+
+        const cardEl = document.createElement('div');
+        cardEl.className = `event-card group bg-surface-container-lowest p-space-lg rounded-2xl shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.99] cursor-pointer border ${isPinned ? 'border-primary shadow-primary/10' : 'border-surface-container/60'}`;
+        cardEl.onclick = (e) => {
+          if (e.target.closest('.card-btn-action')) return;
+          pinAsHero(item.id);
+        };
+
+        let reminderStrip = '';
+        if (item.note) {
+          reminderStrip = `
+            <div class="mt-space-sm pt-space-xs flex items-center justify-between text-on-surface-variant text-[11px] font-bold bg-surface-container-low px-space-sm py-1.5 rounded-lg">
+              <span class="flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px] text-primary">notifications_active</span>
+                ${item.note}
+              </span>
+              <span class="text-primary font-bold">Active</span>
+            </div>
+          `;
+        }
+
+        let progressBar = '';
+        if (!status.isPast && status.elapsedPercent > 0) {
+          progressBar = `
+            <div class="mt-space-md w-full h-1.5 rounded-full bg-surface-container overflow-hidden">
+              <div class="h-full rounded-full ${progressFill}" style="width: ${status.elapsedPercent}%;"></div>
+            </div>
+          `;
+        }
+
+        cardEl.innerHTML = `
+          <div class="flex items-start justify-between gap-space-sm">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full ${catBg} ${catText} text-[11px] font-bold">
+                  <span>${item.emoji || '📌'}</span> ${item.categoryLabel || item.category}
+                </span>
+                <span class="text-[12px] text-on-surface-variant font-medium">${status.dateDisplay}</span>
+              </div>
+              <h4 class="text-[16px] font-bold text-on-surface truncate">${escapeHtml(item.title)}</h4>
+              <p class="text-[12px] text-on-surface-variant truncate mt-0.5">${escapeHtml(item.desc || '')}</p>
+            </div>
+            <div class="flex flex-col items-end shrink-0 pl-space-xs">
+              <span class="text-[16px] font-extrabold ${status.badgeThemeClass} px-3 py-1 rounded-xl tracking-tight">${status.ddayBadge}</span>
+              <span class="text-[11px] font-semibold text-on-surface-variant mt-1">${status.isPast ? 'Completed' : `${status.elapsedPercent}% elapsed`}</span>
+            </div>
+          </div>
+          ${progressBar}
+          ${reminderStrip}
+
+          <!-- Quick Action Buttons on hover/focus -->
+          <div class="flex justify-end gap-1.5 mt-2.5 pt-2 border-t border-surface-container/50 opacity-80 group-hover:opacity-100 transition-opacity">
+            <button class="card-btn-action px-2 py-1 rounded-lg text-[11px] font-bold text-on-surface-variant hover:text-primary hover:bg-surface-container-low transition-colors flex items-center gap-1" onclick="openEditModal('${item.id}')">
+              <span class="material-symbols-outlined text-[14px]">edit</span> Edit
+            </button>
+            <button class="card-btn-action px-2 py-1 rounded-lg text-[11px] font-bold text-error hover:bg-error-container/50 transition-colors flex items-center gap-1" onclick="deleteEvent('${item.id}')">
+              <span class="material-symbols-outlined text-[14px]">delete</span> Delete
+            </button>
+          </div>
+        `;
+        container.appendChild(cardEl);
+      });
+    }
+
+    function updateCategoryCounts() {
+      const counts = { all: events.length, work: 0, family: 0, living: 0, memories: 0 };
+      events.forEach(e => {
+        const cat = e.category.toLowerCase();
+        if (counts[cat] !== undefined) counts[cat]++;
+      });
+
+      document.getElementById('count-all').textContent = counts.all;
+      document.getElementById('count-work').textContent = counts.work;
+      document.getElementById('count-family').textContent = counts.family;
+      document.getElementById('count-living').textContent = counts.living;
+      document.getElementById('count-memories').textContent = counts.memories;
+    }
+
+    function pinAsHero(id) {
+      pinnedEventId = id;
+      events.forEach(e => e.pinned = (e.id === id));
+      saveEvents();
+      renderUI();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      showToast('상단 히어로 카운트다운으로 고정되었습니다 ⏱️');
+    }
+
+    // Realtime Countdown Timer Loop (updates every second)
+    function startRealtimeTick() {
+      setInterval(() => {
+        const hero = events.find(e => e.id === pinnedEventId) || events[0];
+        if (!hero) return;
+        const status = calculateEventStatus(hero);
+        document.getElementById('hero-days').textContent = String(status.days).padStart(2, '0');
+        document.getElementById('hero-hours').textContent = String(status.hours).padStart(2, '0');
+        document.getElementById('hero-mins').textContent = String(status.mins).padStart(2, '0');
+        document.getElementById('hero-secs').textContent = String(status.secs).padStart(2, '0');
+      }, 1000);
+    }
+
+    // Modal Add / Edit Operations
+    function openAddModal() {
+      document.getElementById('modal-heading').textContent = 'Add New Event';
+      document.getElementById('form-event-id').value = '';
+      document.getElementById('event-form').reset();
+      
+      // Default to 14 days later
+      const target = new Date();
+      target.setDate(target.getDate() + 14);
+      document.getElementById('form-date').value = target.toISOString().split('T')[0];
+      selectCategoryButton('work');
+
+      document.getElementById('event-modal-backdrop').classList.add('open');
+      setTimeout(() => document.getElementById('form-title').focus(), 150);
+    }
+
+    function openEditModal(id) {
+      const item = events.find(e => e.id === id);
+      if (!item) return;
+
+      document.getElementById('modal-heading').textContent = 'Edit Event';
+      document.getElementById('form-event-id').value = item.id;
+      document.getElementById('form-title').value = item.title;
+      document.getElementById('form-desc').value = item.desc || '';
+      document.getElementById('form-date').value = item.date;
+      document.getElementById('form-time').value = item.time || '09:00';
+      document.getElementById('form-pinned').checked = (item.id === pinnedEventId);
+      selectCategoryButton(item.category);
+
+      document.getElementById('event-modal-backdrop').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('event-modal-backdrop').classList.remove('open');
+    }
+
+    function selectCategoryButton(catKey) {
+      document.querySelectorAll('.cat-select-btn').forEach(btn => {
+        const match = btn.getAttribute('data-cat') === catKey;
+        btn.classList.toggle('selected', match);
+        btn.classList.toggle('text-primary', match);
+        btn.classList.toggle('border-primary', match);
+      });
+    }
+
+    function handleSaveEvent(e) {
+      e.preventDefault();
+      const editId = document.getElementById('form-event-id').value;
+      const title = document.getElementById('form-title').value.trim();
+      const desc = document.getElementById('form-desc').value.trim();
+      const date = document.getElementById('form-date').value;
+      const time = document.getElementById('form-time').value || '09:00';
+      const isPinned = document.getElementById('form-pinned').checked;
+
+      const selectedCatBtn = document.querySelector('.cat-select-btn.selected');
+      const category = selectedCatBtn ? selectedCatBtn.getAttribute('data-cat') : 'work';
+      const emoji = selectedCatBtn ? selectedCatBtn.getAttribute('data-emoji') : '🚀';
+      const catLabels = { work: 'Work', family: 'Family', living: 'Living', memories: 'Memories' };
+
+      if (!title || !date) {
+        showToast('제목과 날짜를 입력해 주세요 ⚠️');
+        return;
+      }
+
+      if (editId) {
+        const idx = events.findIndex(e => e.id === editId);
+        if (idx !== -1) {
+          events[idx] = {
+            ...events[idx],
+            title,
+            desc,
+            date,
+            time,
+            category,
+            categoryLabel: catLabels[category],
+            emoji
+          };
+          if (isPinned) pinnedEventId = editId;
+          showToast('이벤트가 수정되었습니다 ✨');
+        }
+      } else {
+        const newEvent = {
+          id: 'ev-' + Date.now(),
+          title,
+          desc,
+          date,
+          time,
+          category,
+          categoryLabel: catLabels[category],
+          emoji,
+          pinned: isPinned,
+          totalDurationDays: 30,
+          elapsedPercent: 10,
+          createdAt: Date.now()
+        };
+        events.unshift(newEvent);
+        if (isPinned || events.length === 1) pinnedEventId = newEvent.id;
+        triggerConfetti();
+        showToast('새로운 이벤트가 등록되었습니다 🎉');
+      }
+
+      saveEvents();
+      renderUI();
+      closeModal();
+    }
+
+    function deleteEvent(id) {
+      const item = events.find(e => e.id === id);
+      if (!confirm(`'${item ? item.title : '이 이벤트'}'를 삭제하시겠습니까?`)) return;
+
+      events = events.filter(e => e.id !== id);
+      if (pinnedEventId === id) {
+        pinnedEventId = events[0] ? events[0].id : null;
+      }
+      saveEvents();
+      renderUI();
+      showToast('이벤트가 삭제되었습니다 🗑️');
+    }
+
+    // Category Filter Chips Interaction
+    function setupEventListeners() {
+      const chips = document.querySelectorAll('.filter-chip');
+      chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          chips.forEach(c => {
+            c.className = 'filter-chip shrink-0 px-space-md h-9 rounded-full bg-surface-container-low text-on-surface-variant hover:text-on-surface text-[12px] font-semibold flex items-center justify-center active:scale-95 transition-all';
+          });
+          chip.className = 'filter-chip shrink-0 px-space-md h-9 rounded-full bg-on-surface text-surface text-[12px] font-semibold flex items-center justify-center shadow-sm active:scale-95 transition-all';
+
+          currentFilter = chip.dataset.category;
+          renderEventStack();
+        });
+      });
+
+      // Category buttons in modal
+      document.querySelectorAll('.cat-select-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectCategoryButton(btn.getAttribute('data-cat'));
+        });
+      });
+
+      // Search button
+      document.getElementById('toggle-search-btn').addEventListener('click', () => {
+        const bar = document.getElementById('search-bar');
+        bar.classList.toggle('hidden');
+        if (!bar.classList.contains('hidden')) {
+          document.getElementById('search-input').focus();
+        }
+      });
+
+      const searchInput = document.getElementById('search-input');
+      const clearBtn = document.getElementById('clear-search-btn');
+
+      searchInput.addEventListener('input', (e) => {
+        searchQuery = e.target.value.trim();
+        clearBtn.classList.toggle('hidden', searchQuery.length === 0);
+        renderEventStack();
+      });
+
+      clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        searchQuery = '';
+        clearBtn.classList.add('hidden');
+        renderEventStack();
+      });
+
+      // Sort Order
+      document.getElementById('sort-order-btn').addEventListener('click', () => {
+        sortAscending = !sortAscending;
+        document.getElementById('sort-label').textContent = sortAscending ? 'Sort by date (오름차순)' : 'Sort by date (내림차순)';
+        renderEventStack();
+      });
+
+      // Edit hero button
+      document.getElementById('hero-edit-btn').addEventListener('click', () => {
+        if (pinnedEventId) openEditModal(pinnedEventId);
+      });
+
+      // Theme toggle button
+      document.getElementById('toggle-theme-btn').addEventListener('click', toggleTheme);
+
+      // Close modal on backdrop click
+      document.getElementById('event-modal-backdrop').addEventListener('click', (e) => {
+        if (e.target.id === 'event-modal-backdrop') closeModal();
+      });
+    }
+
+    function setCategoryFilter(cat) {
+      currentFilter = cat;
+      const chip = document.querySelector(`.filter-chip[data-category="${cat}"]`);
+      if (chip) chip.click();
+    }
+
+    function focusTagFilter() {
+      const chipsRow = document.querySelector('.filter-chips-scroll');
+      chipsRow.scrollIntoView({ behavior: 'smooth' });
+      showToast('태그 카테고리를 선택하여 필터링할 수 있습니다 🏷️');
+    }
+
+    // Theme Switcher
+    function initTheme() {
+      const saved = localStorage.getItem(THEME_KEY) || 'light';
+      applyTheme(saved);
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.contains('dark');
+      applyTheme(isDark ? 'light' : 'dark');
+      showToast(isDark ? '라이트 모드가 적용되었습니다 ☀️' : '다크 모드가 적용되었습니다 🌙');
+    }
+
+    function applyTheme(mode) {
+      if (mode === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.getElementById('theme-icon').textContent = 'light_mode';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.getElementById('theme-icon').textContent = 'dark_mode';
+      }
+      localStorage.setItem(THEME_KEY, mode);
+    }
+
+    // Toast Notification
+    function showToast(msg) {
+      const box = document.getElementById('toast-box');
+      const toast = document.createElement('div');
+      toast.className = 'px-4 py-2 rounded-full bg-on-surface text-surface text-[12px] font-bold shadow-xl transition-all duration-300 opacity-0 transform -translate-y-2';
+      toast.textContent = msg;
+      box.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('opacity-0', '-translate-y-2');
+        toast.classList.add('opacity-100', 'translate-y-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 2400);
+    }
+
+    // Confetti Engine
+    function triggerConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = [];
+      const colors = ['#3525cd', '#4f46e5', '#ffb695', '#ffdad6', '#0058be', '#2170e4'];
+
+      for (let i = 0; i < 50; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height / 3,
+          vx: (Math.random() - 0.5) * 14,
+          vy: (Math.random() - 0.7) * 16,
+          size: Math.random() * 7 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          opacity: 1
+        });
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let alive = 0;
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.45;
+          p.opacity -= 0.015;
+          if (p.opacity > 0) {
+            alive++;
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.opacity;
+            ctx.fillRect(p.x, p.y, p.size, p.size);
+          }
+        });
+        if (alive > 0) requestAnimationFrame(draw);
+        else ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      draw();
+    }
+
+    function escapeHtml(string) {
+      return String(string).replace(/[&<>"']/g, function(s) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s];
+      });
+    }
+  </script>
+</body>
+</html>
